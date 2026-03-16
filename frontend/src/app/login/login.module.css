@@ -1,0 +1,129 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Panel izquierdo */
+.panel {
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.panelGrid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.5;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+}
+
+.panelContent {
+  position: relative;
+  z-index: 1;
+  max-width: 360px;
+  padding: 40px;
+  animation: fadeIn 500ms ease forwards;
+}
+
+.panelLogo {
+  font-size: 48px;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 20px;
+}
+
+.panelTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.panelDesc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+.panelStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.panelTag {
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+}
+
+/* Panel derecho */
+.formPanel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: var(--bg-base);
+}
+
+.formCard {
+  width: 100%;
+  max-width: 380px;
+  animation: fadeIn 400ms 100ms ease both;
+}
+
+.formHeader {
+  margin-bottom: 28px;
+}
+
+.formTitle {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.formSubtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.errorBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { grid-template-columns: 1fr; }
+  .panel { display: none; }
+}

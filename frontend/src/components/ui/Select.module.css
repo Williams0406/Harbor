@@ -1,0 +1,38 @@
+.wrapper { display: flex; flex-direction: column; gap: 6px; }
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.select {
+  height: 38px;
+  padding: 0 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b949e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47,129,247,0.15);
+}
+
+.select option { background: var(--bg-surface); }
+
+.error { border-color: var(--danger) !important; }
+.errorMsg { font-size: 12px; color: var(--danger); }

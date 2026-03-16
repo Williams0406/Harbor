@@ -1,0 +1,34 @@
+    'use client'
+
+import styles from './Button.module.css'
+
+export default function Button({
+  children,
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  disabled = false,
+  fullWidth = false,
+  onClick,
+  type = 'button',
+  ...props
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled || loading}
+      className={[
+        styles.btn,
+        styles[variant],
+        styles[size],
+        fullWidth ? styles.fullWidth : '',
+        loading   ? styles.loading   : '',
+      ].join(' ')}
+      {...props}
+    >
+      {loading && <span className={styles.spinner} />}
+      <span className={loading ? styles.hiddenText : ''}>{children}</span>
+    </button>
+  )
+}
