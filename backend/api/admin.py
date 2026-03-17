@@ -9,6 +9,7 @@ from .models import (
     Sale, SaleDetail,
     Payment, PaymentItem,
     ExchangeRate, EngineReport,
+    RegistrationPerson,
 )
 
 
@@ -158,3 +159,10 @@ class EngineReportAdmin(admin.ModelAdmin):
             'fields': ('gearbox_oil_pressure', 'gearbox_oil_temp')
         }),
     )
+
+@admin.register(RegistrationPerson)
+class RegistrationPersonAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'email', 'role', 'token_used', 'created_at')
+    list_filter = ('role', 'token_used')
+    search_fields = ('full_name', 'email', 'token')
+    readonly_fields = ('token', 'created_at')

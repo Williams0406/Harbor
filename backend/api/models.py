@@ -23,6 +23,26 @@ class User(AbstractUser):
         return f'{self.username} ({self.get_role_display()})'
 
 
+class RegistrationPerson(models.Model):
+    ROLE_CHOICES = User.ROLE_CHOICES
+
+    full_name   = models.CharField(max_length=150, verbose_name='Nombre completo')
+    email       = models.EmailField(unique=True, verbose_name='Correo')
+    phone       = models.CharField(max_length=30, blank=True, verbose_name='Teléfono')
+    role        = models.CharField(max_length=20, choices=ROLE_CHOICES, default='operator', verbose_name='Rol')
+    token       = models.CharField(max_length=64, unique=True, verbose_name='Token de registro')
+    token_used  = models.BooleanField(default=False, verbose_name='Token usado')
+    created_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_registration_people')
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Persona de registro'
+        verbose_name_plural = 'Personas de registro'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.full_name} ({self.email})'
+
 # ══════════════════════════════════════════════════════════════════════════════
 # BANCO
 # ══════════════════════════════════════════════════════════════════════════════
@@ -283,53 +303,53 @@ class ExchangeRate(models.Model):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class EngineReport(models.Model):
-    # General
+    # General — solo date es obligatorio para identificar el reporte
     date         = models.DateField(verbose_name='Fecha')
-    hourmeter    = models.DecimalField(max_digits=10, decimal_places=1, verbose_name='Horómetro')
-    rpm_speed    = models.DecimalField(max_digits=8,  decimal_places=1, verbose_name='Velocidad RPM')
-    knot_speed   = models.DecimalField(max_digits=8,  decimal_places=2, verbose_name='Velocidad nudos')
-    fish_in_hold = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Pesca en bodega')
+    hourmeter    = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True, verbose_name='Horómetro')
+    rpm_speed    = models.DecimalField(max_digits=8,  decimal_places=1, null=True, blank=True, verbose_name='Velocidad RPM')
+    knot_speed   = models.DecimalField(max_digits=8,  decimal_places=2, null=True, blank=True, verbose_name='Velocidad nudos')
+    fish_in_hold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Pesca en bodega')
 
     # Temperaturas y presiones principales
-    ambient_temp_engine_room = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. ambiente sala máquinas')
-    intake_air_temp          = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. aire admisión')
-    exhaust_pipe_temp        = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. tubo de escape')
-    oil_pressure             = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Presión aceite')
-    oil_temp_crankcase       = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. aceite cárter')
-    engine_coolant_temp      = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. refrigerante motor')
-    damper_temp              = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. damper')
-    boost_pressure           = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Presión boots')
+    ambient_temp_engine_room = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. ambiente sala máquinas')
+    intake_air_temp          = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. aire admisión')
+    exhaust_pipe_temp        = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. tubo de escape')
+    oil_pressure             = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Presión aceite')
+    oil_temp_crankcase       = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. aceite cárter')
+    engine_coolant_temp      = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. refrigerante motor')
+    damper_temp              = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. damper')
+    boost_pressure           = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Presión boots')
 
     # Aceite motor
-    engine_oil_level  = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Nivel aceite motor')
-    refill_engine_oil = models.BooleanField(default=False, verbose_name='Rellenar aceite motor')
+    engine_oil_level  = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Nivel aceite motor')
+    refill_engine_oil = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True, verbose_name='Rellenar aceite motor (0/1)')
 
     # Bomba de refrigerante
-    coolant_pump_pressure = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Presión bomba refrigerante')
+    coolant_pump_pressure = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Presión bomba refrigerante')
 
     # Aftercooler
-    aftercooler_coolant_inlet_temp  = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. entrada refrigerante aftercooler')
-    aftercooler_coolant_outlet_temp = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. salida refrigerante aftercooler')
+    aftercooler_coolant_inlet_temp  = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. entrada refrigerante aftercooler')
+    aftercooler_coolant_outlet_temp = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. salida refrigerante aftercooler')
 
     # Camisas
-    liner_coolant_inlet_temp  = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. entrada refrigerante a las camisas')
-    liner_coolant_outlet_temp = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. salida refrigerante a las camisas')
+    liner_coolant_inlet_temp  = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. entrada refrigerante a las camisas')
+    liner_coolant_outlet_temp = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. salida refrigerante a las camisas')
 
     # Caja de transmisión — refrigerante
-    gearbox_coolant_inlet_temp  = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. entrada refrigerante caja transmisión')
-    gearbox_coolant_outlet_temp = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. salida refrigerante caja transmisión')
+    gearbox_coolant_inlet_temp  = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. entrada refrigerante caja transmisión')
+    gearbox_coolant_outlet_temp = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. salida refrigerante caja transmisión')
 
     # Temperatura escape por cilindro
-    exhaust_temp_cyl_1 = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. escape cilindro #1')
-    exhaust_temp_cyl_2 = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. escape cilindro #2')
-    exhaust_temp_cyl_3 = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. escape cilindro #3')
-    exhaust_temp_cyl_4 = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. escape cilindro #4')
-    exhaust_temp_cyl_5 = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. escape cilindro #5')
-    exhaust_temp_cyl_6 = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. escape cilindro #6')
+    exhaust_temp_cyl_1 = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. escape cilindro #1')
+    exhaust_temp_cyl_2 = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. escape cilindro #2')
+    exhaust_temp_cyl_3 = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. escape cilindro #3')
+    exhaust_temp_cyl_4 = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. escape cilindro #4')
+    exhaust_temp_cyl_5 = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. escape cilindro #5')
+    exhaust_temp_cyl_6 = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. escape cilindro #6')
 
     # Caja de transmisión — aceite
-    gearbox_oil_pressure = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Presión aceite caja transmisión')
-    gearbox_oil_temp     = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Temp. aceite caja transmisión')
+    gearbox_oil_pressure = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Presión aceite caja transmisión')
+    gearbox_oil_temp     = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name='Temp. aceite caja transmisión')
 
     created_at = models.DateTimeField(auto_now_add=True)
 

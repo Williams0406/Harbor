@@ -7,6 +7,7 @@ urlpatterns = [
     path('auth/logout/',        views.logout,        name='auth_logout'),
     path('auth/me/',            views.me,            name='auth_me'),
     path('auth/token/refresh/', views.token_refresh, name='token_refresh'),
+    path('auth/register-with-token/', views.register_with_token, name='register_with_token'),
 
     # ── Banco ─────────────────────────────────────────────────────────────────
     path('bank/accounts/',           views.BankAccountListCreate.as_view(),  name='bank_accounts'),
@@ -45,4 +46,9 @@ urlpatterns = [
     # ── Reportes ──────────────────────────────────────────────────────────────
     path('reports/',          views.EngineReportListCreate.as_view(), name='reports'),
     path('reports/<int:pk>/', views.EngineReportDetail.as_view(),     name='report_detail'),
+
+    # ── Personas + token de registro ─────────────────────────────────────────
+    path('registration-people/', views.RegistrationPersonListCreate.as_view(), name='registration_people'),
+    path('registration-people/<int:pk>/', views.RegistrationPersonDetail.as_view(), name='registration_people_detail'),
+    path('registration-people/<int:pk>/regenerate-token/', views.regenerate_registration_token, name='registration_people_regenerate_token'),
 ]

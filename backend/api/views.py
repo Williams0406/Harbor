@@ -5,7 +5,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
+import secrets
 
 from .models import (
     BankAccount, BankMovement,
@@ -13,6 +14,7 @@ from .models import (
     Purchase, InventoryEntry,
     Sale, Payment,
     ExchangeRate, EngineReport,
+    RegistrationPerson,
 )
 from .serializers import (
     BankAccountSerializer, BankMovementSerializer,
@@ -20,6 +22,7 @@ from .serializers import (
     PurchaseSerializer, InventoryEntrySerializer,
     SaleSerializer, PaymentSerializer,
     ExchangeRateSerializer, EngineReportSerializer,
+    RegistrationPersonSerializer, RegistrationPersonCreateSerializer, RegisterUserWithTokenSerializer,
 )
 
 
@@ -255,3 +258,99 @@ class EngineReportListCreate(generics.ListCreateAPIView):
 class EngineReportDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset         = EngineReport.objects.all()
     serializer_class = EngineReportSerializer
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PERSONAS + TOKEN DE REGISTRO
+# ══════════════════════════════════════════════════════════════════════════════
+
+class RegistrationPersonListCreate(generics.ListCreateAPIView):
+    queryset = RegistrationPerson.objects.select_related('created_by').all()
+    search_fields = ('full_name', 'email', 'token')
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return RegistrationPersonCreateSerializer
+        return RegistrationPersonSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            token=secrets.token_urlsafe(24),
+        )
+
+
+class RegistrationPersonDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = RegistrationPerson.objects.select_related('created_by').all()
+    serializer_class = RegistrationPersonSerializer
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def regenerate_registration_token(request, pk):
+    try:
+        person = RegistrationPerson.objects.get(pk=pk)
+    except RegistrationPerson.DoesNotExist:
+        return Response({'error': 'Persona no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+    person.token = secrets.token_urlsafe(24)
+    person.token_used = False
+    person.save(update_fields=['token', 'token_used'])
+
+    return Response({'id': person.id, 'token': person.token, 'token_used': person.token_used})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_with_token(request):
+    serializer = RegisterUserWithTokenSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    token = serializer.validated_data['token'].strip()
+    username = serializer.validated_data['username'].strip()
+    password = serializer.validated_data['password']
+
+    try:
+        person = RegistrationPerson.objects.get(token=token)
+    except RegistrationPerson.DoesNotExist:
+        return Response({'error': 'Token inválido'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if person.token_used:
+        return Response({'error': 'Este token ya fue utilizado'}, status=status.HTTP_400_BAD_REQUEST)
+
+    UserModel = get_user_model()
+    if UserModel.objects.filter(username=username).exists():
+        return Response({'error': 'El usuario ya existe'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if UserModel.objects.filter(email=person.email).exists():
+        return Response({'error': 'Ya existe una cuenta para este correo'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = UserModel.objects.create_user(
+        username=username,
+        email=person.email,
+        password=password,
+        first_name=serializer.validated_data.get('first_name', '').strip(),
+        last_name=serializer.validated_data.get('last_name', '').strip(),
+        role=person.role,
+    )
+
+    person.token_used = True
+    person.save(update_fields=['token_used'])
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'message': 'Registro completado',
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role': user.role,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+        }
+    }, status=status.HTTP_201_CREATED)

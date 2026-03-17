@@ -15,6 +15,8 @@ const NAV_ITEMS = [
   { label: 'Pagos',         href: '/dashboard/payments',      icon: '⬡' },
   { label: 'T. Cambio',     href: '/dashboard/exchange-rates',icon: '⟳' },
   { label: 'Reportes',      href: '/dashboard/report',       icon: '▤' },
+  { label: 'Importar/Exportar', href: '/dashboard/data-transfer', icon: '⇅' },
+  { label: 'Personas/Tokens', href: '/dashboard/registration-tokens', icon: '🔐' },
 ]
 
 export default function Sidebar({ user }) {
@@ -68,7 +70,8 @@ export default function Sidebar({ user }) {
           </div>
         </div>
         <button className={styles.logoutBtn} onClick={handleLogout} title="Cerrar sesión">
-          ⏻
+          <span className={styles.navIcon}>⏻</span>
+          <span>Cerrar sesión</span>
         </button>
       </div>
     </aside>

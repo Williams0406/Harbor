@@ -1,0 +1,171 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.title {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.description {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.stepBadge {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.stepTitle {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(200px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.uploadBtn {
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  font-size: 13px;
+}
+
+.uploadBtn:hover {
+  border-color: var(--accent);
+}
+
+.mappingCard {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.mappingTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.mappingGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.mappingRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.sourceCol {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.select {
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.message {
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+
+.info {
+  color: #1f6feb;
+  background: rgba(31, 111, 235, 0.12);
+  border-color: rgba(31, 111, 235, 0.35);
+}
+
+.success {
+  color: #3fb950;
+  background: rgba(63, 185, 80, 0.12);
+  border-color: rgba(63, 185, 80, 0.35);
+}
+
+.error {
+  color: var(--danger);
+  background: rgba(248, 81, 73, 0.12);
+  border-color: rgba(248, 81, 73, 0.35);
+}
+
+.warning {
+  color: #d29922;
+  background: rgba(210, 153, 34, 0.12);
+  border-color: rgba(210, 153, 34, 0.35);
+}
+
+.helper {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .row,
+  .mappingRow {
+    grid-template-columns: 1fr;
+  }
+}

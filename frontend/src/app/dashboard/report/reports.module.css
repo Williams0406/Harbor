@@ -1,0 +1,352 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   LAYOUT — columna flex, sin scroll externo, tabla ocupa el resto exacto
+   ══════════════════════════════════════════════════════════════════════════ */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+.headerLeft  { display: flex; flex-direction: column; gap: 2px; }
+.headerRight { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.title    { font-size: 17px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; }
+.subtitle { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.04em; }
+
+/* ── Pills de estado ─────────────────────────────────────────────────────── */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.pill[data-variant="saving"] {
+  background: rgba(47,129,247,0.1);
+  border: 1px solid rgba(47,129,247,0.2);
+  color: var(--accent);
+}
+.pill[data-variant="error"] {
+  background: rgba(248,81,73,0.1);
+  border: 1px solid rgba(248,81,73,0.2);
+  color: var(--danger);
+  animation: fadeIn 200ms ease;
+}
+.dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 900ms ease infinite;
+}
+
+/* ── Botones ─────────────────────────────────────────────────────────────── */
+.btnPrimary {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px;
+  background: var(--accent); color: #fff;
+  border: 1px solid var(--accent); border-radius: 7px;
+  font-size: 12px; font-weight: 500; font-family: var(--font-sans);
+  cursor: pointer; transition: background 130ms, transform 80ms;
+}
+.btnPrimary:hover:not(:disabled)  { background: var(--accent-hover); }
+.btnPrimary:active:not(:disabled) { transform: scale(0.97); }
+.btnPrimary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btnSecondary {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px;
+  background: var(--bg-elevated); color: var(--text-secondary);
+  border: 1px solid var(--border); border-radius: 7px;
+  font-size: 12px; font-weight: 500; font-family: var(--font-sans);
+  cursor: pointer; transition: background 130ms, color 130ms, border-color 130ms;
+}
+.btnSecondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.btnSecondary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btnGhost {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px;
+  background: transparent; color: var(--text-secondary);
+  border: 1px solid var(--border); border-radius: 7px;
+  font-size: 12px; font-family: var(--font-sans);
+  cursor: pointer; transition: background 130ms, color 130ms;
+}
+.btnGhost:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* ── Leyenda ─────────────────────────────────────────────────────────────── */
+.legend {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 7px 28px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-secondary);
+  padding: 2px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.chipDot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
+.hint { margin-left: auto; font-size: 11px; color: var(--text-muted); font-style: italic; white-space: nowrap; }
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Área de la tabla ────────────────────────────────────────────────────── */
+.tableArea {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* El div que monta Handsontable llena el área exactamente */
+.hotContainer {
+  position: absolute;
+  inset: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   OVERRIDES HANDSONTABLE — tema oscuro preciso
+   La estrategia: casi todo el estilo se aplica via afterGetColHeader /
+   afterGetRowHeader / renderer en JS. El CSS sólo cubre lo que no se puede
+   hacer desde JS: scrollbars, borders globales, menú contextual, editor.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Fondo base del contenedor */
+.hotContainer :global(.handsontable),
+.hotContainer :global(.handsontable .wtHolder),
+.hotContainer :global(.handsontable .wtHider),
+.hotContainer :global(.handsontable .wtSpreader) {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* Ocultar el fondo blanco que agrega Handsontable por defecto */
+.hotContainer :global(.handsontable .htCore),
+.hotContainer :global(.handsontable .htCore tbody) {
+  background: transparent !important;
+}
+
+/* Borde de tabla completo */
+.hotContainer :global(.handsontable table.htCore) {
+  border-collapse: collapse !important;
+}
+
+/* Borde de selección — fino, del color del acento */
+.hotContainer :global(.handsontable .wtBorder) {
+  background: var(--accent) !important;
+  opacity: 0.7 !important;
+}
+.hotContainer :global(.handsontable .wtBorder.corner) {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  opacity: 1 !important;
+  width: 5px !important;
+  height: 5px !important;
+}
+
+/* ── Input de edición inline ─────────────────────────────────────────────── */
+.hotContainer :global(.handsontable .handsontableInput) {
+  background: var(--bg-base) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  border: 1px solid var(--accent) !important;
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px rgba(47,129,247,0.12) !important;
+  padding: 0 8px !important;
+  caret-color: var(--accent) !important;
+}
+
+/* ── Menú contextual ─────────────────────────────────────────────────────── */
+.hotContainer :global(.htContextMenu .wtHolder) {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px var(--border-subtle) !important;
+  overflow: hidden !important;
+  padding: 4px 0 !important;
+}
+
+.hotContainer :global(.htContextMenu table.htCore) {
+  background: transparent !important;
+  border: none !important;
+}
+
+.hotContainer :global(.htContextMenu table tbody tr td) {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 12px !important;
+  padding: 6px 16px !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background 80ms, color 80ms !important;
+  white-space: nowrap !important;
+}
+.hotContainer :global(.htContextMenu table tbody tr td:hover),
+.hotContainer :global(.htContextMenu table tbody tr.current td) {
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
+/* Separador */
+.hotContainer :global(.htContextMenu table tbody tr td.htSeparator) {
+  background: var(--border-subtle) !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: 3px 0 !important;
+}
+/* Item de eliminar — rojo sutil */
+.hotContainer :global(.htContextMenu table tbody tr:first-child td) {
+  color: var(--danger) !important;
+}
+.hotContainer :global(.htContextMenu table tbody tr:first-child td:hover) {
+  background: rgba(248,81,73,0.1) !important;
+  color: var(--danger) !important;
+}
+
+/* ── Scrollbars internos — alineados con los globales del ERP ────────────── */
+.hotContainer :global(*::-webkit-scrollbar)       { width: 7px; height: 7px; }
+.hotContainer :global(*::-webkit-scrollbar-track) { background: var(--bg-base); border-radius: 4px; }
+.hotContainer :global(*::-webkit-scrollbar-thumb) {
+  background: var(--border);
+  border-radius: 4px;
+  border: 1px solid var(--bg-base);
+}
+.hotContainer :global(*::-webkit-scrollbar-thumb:hover)  { background: var(--text-muted); }
+.hotContainer :global(*::-webkit-scrollbar-corner) { background: var(--bg-base); }
+
+/* Scrollbar horizontal — igual pero más visible en la zona inferior */
+.hotContainer :global(.ht_master .wtHolder::-webkit-scrollbar-track) {
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MODAL DE FECHA
+   ══════════════════════════════════════════════════════════════════════════ */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 140ms ease;
+}
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  width: 300px;
+  overflow: hidden;
+  animation: slideUp 180ms cubic-bezier(0.4,0,0.2,1);
+}
+.modalHeader {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 20px 0;
+}
+.modalAccent {
+  width: 3px; height: 18px;
+  background: var(--accent);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.modalTitle {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary);
+}
+.modalInput {
+  display: block;
+  width: calc(100% - 40px);
+  margin: 14px 20px;
+  height: 36px; padding: 0 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 140ms, box-shadow 140ms;
+}
+.modalInput:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47,129,247,0.15);
+}
+.modalFoot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 0 20px 16px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ESTADOS VACÍO Y CARGANDO
+   ══════════════════════════════════════════════════════════════════════════ */
+.stateCenter {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; text-align: center; padding: 40px;
+}
+.stateText { font-size: 13px; color: var(--text-muted); }
+
+.emptyGlyph { font-size: 48px; color: var(--text-muted); opacity: 0.25; line-height: 1; }
+.emptyTitle { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.emptyDesc  { font-size: 13px; color: var(--text-secondary); max-width: 320px; line-height: 1.6; }
+
+/* ── Spinners ────────────────────────────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 550ms linear infinite;
+  flex-shrink: 0;
+}
+.spinnerLg {
+  display: block;
+  width: 30px; height: 30px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 650ms linear infinite;
+}
+
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity:0; transform: translateY(8px) scale(0.98); } to { opacity:1; transform: none; } }
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes pulse   { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }

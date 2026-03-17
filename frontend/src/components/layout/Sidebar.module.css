@@ -156,17 +156,21 @@
 
 .logoutBtn {
   background: none;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
+  font-size: 12px;
+  padding: 6px 8px;
   border-radius: var(--radius-sm);
   transition: all var(--transition);
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .logoutBtn:hover {
   color: var(--danger);
   background: rgba(248, 81, 73, 0.1);
+  border-color: rgba(248, 81, 73, 0.25);
 }
