@@ -24,7 +24,8 @@ class Command(BaseCommand):
 
         username = options['username'].strip()
         if User.objects.filter(username=username).exists():
-            raise CommandError('El nombre de usuario ya existe.')
+            self.stdout.write(self.style.WARNING('El usuario ya existe. Saltando creación.'))
+            return
 
         person_id = options.get('person_id')
         if person_id:
@@ -44,7 +45,8 @@ class Command(BaseCommand):
                 },
             )
             if not created and person.linked_user_id:
-                raise CommandError('La persona automática ya tiene un usuario vinculado. Este script solo puede usarse una vez.')
+                self.stdout.write(self.style.WARNING('La persona ya tiene usuario vinculado. Saltando.'))
+                return
 
         if person.linked_user_id:
             raise CommandError('Esta persona ya tiene un usuario vinculado. Este script solo puede usarse una vez por persona.')
