@@ -1,19 +1,17 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { registerUserWithToken } from '@/lib/api/registrationPeople'
 import styles from '../login/login.module.css'
 
-export default function RegisterTokenPage() {
+function RegisterTokenContent() {
   const router = useRouter()
   const params = useSearchParams()
-
-  const initialToken = useMemo(() => params.get('token') || '', [params])
   const [form, setForm] = useState({
-    token: initialToken,
+    token: '',
     username: '',
     password: '',
     confirmPassword: '',
@@ -29,6 +27,11 @@ export default function RegisterTokenPage() {
     setError('')
     setSuccess('')
   }
+
+  useEffect(() => {
+    const token = params.get('token') || ''
+    setForm((prev) => (prev.token === token ? prev : { ...prev, token }))
+  }, [params])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -96,5 +99,13 @@ export default function RegisterTokenPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RegisterTokenPage() {
+  return (
+    <Suspense fallback={<div className={styles.page}><div className={styles.formPanel}><div className={styles.formCard}>Cargando formulario…</div></div></div>}>
+      <RegisterTokenContent />
+    </Suspense>
   )
 }

@@ -167,18 +167,19 @@ class EngineReportSerializer(serializers.ModelSerializer):
 
 class RegistrationPersonSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    linked_user_username = serializers.CharField(source='linked_user.username', read_only=True)
 
     class Meta:
         model = RegistrationPerson
         fields = '__all__'
-        read_only_fields = ('token', 'token_used', 'created_by', 'created_at')
+        read_only_fields = ('token', 'token_used', 'created_by', 'created_at', 'linked_user')
 
 
 class RegistrationPersonCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegistrationPerson
-        fields = ('id', 'full_name', 'email', 'phone', 'role', 'token', 'token_used', 'created_by', 'created_at')
-        read_only_fields = ('token', 'token_used', 'created_by', 'created_at')
+        fields = ('id', 'full_name', 'email', 'phone', 'role', 'token', 'token_used', 'created_by', 'created_at', 'linked_user')
+        read_only_fields = ('token', 'token_used', 'created_by', 'created_at', 'linked_user')
 
 
 class RegisterUserWithTokenSerializer(serializers.Serializer):
@@ -186,4 +187,4 @@ class RegisterUserWithTokenSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     password = serializers.CharField(write_only=True, min_length=8)
     first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
-    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True) 
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)

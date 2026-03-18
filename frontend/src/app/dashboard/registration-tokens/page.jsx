@@ -109,6 +109,7 @@ export default function RegistrationTokensPage() {
     { key: 'full_name', label: 'Persona', render: (r) => <strong>{r.full_name}</strong> },
     { key: 'email', label: 'Correo', render: (r) => r.email },
     { key: 'role', label: 'Rol', render: (r) => <Badge label={r.role} variant={r.role === 'admin' ? 'danger' : r.role === 'viewer' ? 'purple' : 'info'} /> },
+    { key: 'linked_user_username', label: 'Usuario vinculado', render: (r) => r.linked_user_username || '—' },
     { key: 'token_used', label: 'Estado token', render: (r) => <Badge label={r.token_used ? 'Usado' : 'Disponible'} variant={r.token_used ? 'neutral' : 'success'} /> },
     { key: 'token', label: 'Token', render: (r) => <span className="font-mono">{r.token}</span> },
     {

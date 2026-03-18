@@ -321,6 +321,9 @@ def register_with_token(request):
     if person.token_used:
         return Response({'error': 'Este token ya fue utilizado'}, status=status.HTTP_400_BAD_REQUEST)
 
+    if person.linked_user_id:
+        return Response({'error': 'Esta persona ya tiene un usuario vinculado'}, status=status.HTTP_400_BAD_REQUEST)
+
     UserModel = get_user_model()
     if UserModel.objects.filter(username=username).exists():
         return Response({'error': 'El usuario ya existe'}, status=status.HTTP_400_BAD_REQUEST)
@@ -338,7 +341,8 @@ def register_with_token(request):
     )
 
     person.token_used = True
-    person.save(update_fields=['token_used'])
+    person.linked_user = user
+    person.save(update_fields=['token_used', 'linked_user'])
 
     refresh = RefreshToken.for_user(user)
     return Response({

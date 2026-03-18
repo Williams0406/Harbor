@@ -32,6 +32,14 @@ class RegistrationPerson(models.Model):
     role        = models.CharField(max_length=20, choices=ROLE_CHOICES, default='operator', verbose_name='Rol')
     token       = models.CharField(max_length=64, unique=True, verbose_name='Token de registro')
     token_used  = models.BooleanField(default=False, verbose_name='Token usado')
+    linked_user = models.OneToOneField(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registration_person',
+        verbose_name='Usuario vinculado',
+    )
     created_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_registration_people')
     created_at  = models.DateTimeField(auto_now_add=True)
 
@@ -42,6 +50,7 @@ class RegistrationPerson(models.Model):
 
     def __str__(self):
         return f'{self.full_name} ({self.email})'
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # BANCO
