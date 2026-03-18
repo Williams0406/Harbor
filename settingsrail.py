@@ -124,5 +124,5 @@ CORS_ALLOWED_ORIGINS = os.getenv(
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = os.getenv(
-    'CSRF_TRUSTED_ORIGINS', 'https://tuapp.up.railway.app'
+    'CSRF_TRUSTED_ORIGINS'
 ).split(',')
