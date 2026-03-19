@@ -1,7 +1,7 @@
 'use client'
 
 import 'handsontable/styles/handsontable.min.css'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { reportsApi } from '@/lib/api/reports'
 import styles from './reports.module.css'
 
@@ -85,9 +85,14 @@ function syncHot(hot, reports) {
   const headers = reports.map(r => r.date ?? '—')
   const matrix  = buildMatrix(reports)
   const safeData = matrix.length && matrix[0].length ? matrix : [[]]
+  const visibleCols = Math.max(headers.length, 1)
 
-  hot.updateSettings({ colHeaders: headers.length ? headers : ['—'] }, false)
-  hot.loadData(safeData)
+  hot.updateSettings({
+    colHeaders: headers.length ? headers : ['—'],
+    data: safeData,
+    width: ROW_HDR_WIDTH + visibleCols * COL_WIDTH + 2,
+    height: FIELDS.length * ROW_HEIGHT + 34,
+  }, false)
   hot.render()
 }
 
@@ -123,16 +128,23 @@ function DateModal({ date, onSave, onClose }) {
 }
 
 // ─── Handsontable grid ───────────────────────────────────────────────────────
-function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColumnSelect, onAddColumn }) {
+function HotGrid({ reports, selectedColumn, selectedColumns, onCellChange, onHeaderClick, onColumnSelect, onAddColumn }) {
+  const viewportRef      = useRef(null)
   const containerRef     = useRef(null)
   const hotRef           = useRef(null)
   const reportsRef       = useRef(reports)
   const selectedColRef   = useRef(selectedColumn)
+  const selectedColsRef  = useRef(selectedColumns)
   // Track which cells are currently "selection-highlighted" so we can clear them
   const selectionCellsRef = useRef([])
+  const tableMetrics = useMemo(() => ({
+    width: ROW_HDR_WIDTH + Math.max(reports.length, 1) * COL_WIDTH + 2,
+    height: FIELDS.length * ROW_HEIGHT + 34,
+  }), [reports.length])
 
   useEffect(() => { reportsRef.current   = reports       }, [reports])
   useEffect(() => { selectedColRef.current = selectedColumn }, [selectedColumn])
+  useEffect(() => { selectedColsRef.current = selectedColumns }, [selectedColumns])
 
   // ── Mount Handsontable once ──────────────────────────────────────────────
   useEffect(() => {
@@ -154,8 +166,8 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
 
         // ── layout / scroll ────────────────────────────────────────────────
         stretchH: 'none',
-        height: '100%',
-        width:  '100%',
+        height: tableMetrics.height,
+        width: tableMetrics.width,
         // Prevent phantom frozen-clone misalignment
         fixedColumnsStart: 0,
         fixedRowsTop: 0,
@@ -171,7 +183,11 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
         selectionMode: 'multiple',
         outsideClickDeselects: true,
         fillHandle: { autoInsertRow: false },
-        copyPaste: true,
+        copyPaste: {
+          pasteMode: 'overwrite',
+          rowsLimit: FIELDS.length,
+          columnsLimit: Math.max(reportsRef.current.length, 1),
+        },
         undo: true,
         manualColumnResize: true,
         autoWrapRow: false,
@@ -180,12 +196,26 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
         tabMoves:   { row: 0, col: 1 },
 
         // ── Paste clamp — never create rows/cols beyond current bounds ─────
-        afterPaste(data, coords) {
-          // Handsontable already limits by maxRows/maxCols when we return false
-          // from beforeCreateRow/beforeCreateCol; enforce via hooks below.
-        },
         beforeCreateRow()   { return false },
-        beforeCreateCol()   { return false },
+        beforeCreateCol()    { return false },
+        beforePaste(data, coords) {
+          const range = coords?.[0]
+          if (!range) return
+
+          const maxRows = FIELDS.length - range.startRow
+          const maxCols = reportsRef.current.length - range.startCol
+
+          if (maxRows <= 0 || maxCols <= 0) return false
+
+          data.splice(maxRows)
+          for (let index = 0; index < data.length; index += 1) {
+            data[index] = data[index].slice(0, maxCols).map(value => {
+              if (value === null || value === undefined || value === '') return null
+              const normalized = String(value).trim().replace(',', '.')
+              return normalized === '' || Number.isNaN(Number(normalized)) ? null : normalized
+            })
+          }
+        },
 
         // ── Context menu ───────────────────────────────────────────────────
         contextMenu: {
@@ -197,11 +227,23 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
             del_col: {
               name: '✕ &nbsp; Eliminar reporte',
               callback(_k, sel) {
-                const col    = sel[0].start.col
-                const report = reportsRef.current[col]
-                if (!report) return
-                if (!confirm(`¿Eliminar reporte del ${report.date}?`)) return
-                onCellChange('delete', col)
+                const range = sel?.[0]
+                if (!range) return
+
+                const startCol = Math.min(range.start.col, range.end.col)
+                const endCol = Math.max(range.start.col, range.end.col)
+                const cols = Array.from({ length: endCol - startCol + 1 }, (_, index) => startCol + index)
+                const labels = cols
+                  .map(col => reportsRef.current[col]?.date)
+                  .filter(Boolean)
+
+                if (!labels.length) return
+                const msg = labels.length === 1
+                  ? `¿Eliminar reporte del ${labels[0]}?`
+                  : `¿Eliminar ${labels.length} reportes seleccionados?`
+                if (!confirm(msg)) return
+
+                onCellChange('delete', cols)
               },
             },
             sep1:  { name: '---------' },
@@ -226,8 +268,14 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
           })
           selectionCellsRef.current = []
 
-          const notify = c1 === c2 ? c1 : null
-          onColumnSelect(notify)
+          const startCol = Math.min(c1, c2)
+          const endCol = Math.max(c1, c2)
+          const selectedCols = Array.from({ length: endCol - startCol + 1 }, (_, index) => startCol + index)
+          onColumnSelect({
+            active: c1 === c2 ? c1 : startCol,
+            columns: selectedCols,
+          })
+
 
           for (let row = Math.min(r1, r2); row <= Math.max(r1, r2); row++) {
             for (let col = Math.min(c1, c2); col <= Math.max(c1, c2); col++) {
@@ -253,7 +301,7 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
             td.style.boxShadow  = 'none'
           })
           selectionCellsRef.current = []
-          onColumnSelect(null)
+          onColumnSelect({ active: null, columns: [] })
           hot.render()
         },
 
@@ -279,7 +327,7 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
             font-family: ${T.fontSans};
             font-size: 11px;
             font-weight: 400;
-            color: ${T.textSec};
+            color: ${T.textPrimary};
             text-align: left;
             padding: 0 10px 0 10px;
             white-space: nowrap;
@@ -293,7 +341,7 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
         // ── Col header styling ─────────────────────────────────────────────
         afterGetColHeader(col, TH) {
           if (!TH || col < 0) return
-          const isSelected = selectedColRef.current === col
+          const isSelected = selectedColsRef.current.includes(col) || selectedColRef.current === col
 
           TH.style.cssText = `
             background: ${isSelected ? T.bgHover : T.bgElevated};
@@ -327,6 +375,15 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
           return {
             type: 'numeric',
             numericFormat: { pattern: '0.[00]', culture: 'en-US' },
+            validator(value, callback) {
+              if (value === null || value === undefined || value === '') {
+                callback(true)
+                return
+              }
+              const normalized = String(value).trim().replace(',', '.')
+              callback(normalized !== '' && !Number.isNaN(Number(normalized)))
+            },
+            allowInvalid: false,
             renderer(hotInstance, TD, r, c, prop, value, cellProperties) {
               Handsontable.renderers.NumericRenderer.call(
                 this, hotInstance, TD, r, c, prop, value, cellProperties
@@ -365,12 +422,28 @@ function HotGrid({ reports, selectedColumn, onCellChange, onHeaderClick, onColum
     syncHot(hotRef.current, reports)
     // Re-render headers to reflect new selectedColumn highlight
     hotRef.current?.render()
-  }, [reports, selectedColumn])
+  }, [reports, selectedColumn, selectedColumns])
 
-  return <div ref={containerRef} className={styles.hotContainer} />
+  return (
+    <div ref={viewportRef} className={styles.hotViewport}>
+      <div
+        ref={containerRef}
+        className={styles.hotContainer}
+        style={{ width: `${tableMetrics.width}px`, height: `${tableMetrics.height}px` }}
+      />
+    </div>
+  )
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
+function normalizeNumber(value) {
+  if (value === '' || value === null || value === undefined) return null
+  const normalized = String(value).trim().replace(',', '.')
+  if (normalized === '') return null
+  const parsed = Number(normalized)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
 export default function ReportsPage() {
   const reportsRef = useRef([])
   const [reports,       setReports]       = useState([])
@@ -380,12 +453,13 @@ export default function ReportsPage() {
   const [errMsg,        setErrMsg]        = useState('')
   const [dateModal,     setDateModal]     = useState(null)
   const [selectedColumn, setSelectedColumn] = useState(null)
+  const [selectedColumns, setSelectedColumns] = useState([])
 
   useEffect(() => { reportsRef.current = reports }, [reports])
 
   // ── Load ─────────────────────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (keepLoadingState = true) => {
+    if (keepLoadingState) setLoading(true)
     try {
       const res  = await reportsApi.getReports()
       const list = sortReports(res.data.results ?? res.data)
@@ -393,7 +467,7 @@ export default function ReportsPage() {
     } catch {
       setReports([])
     } finally {
-      setLoading(false)
+      if (keepLoadingState) setLoading(false)
     }
   }, [])
 
@@ -413,6 +487,7 @@ export default function ReportsPage() {
       const next  = sortReports([...reportsRef.current, res.data])
       setReports(next)
       setSelectedColumn(next.findIndex(r => r.id === res.data.id))
+      await load(false)
     } catch (e) {
       flash(e.response?.data?.date?.[0] || 'Error al crear reporte')
     } finally {
@@ -421,25 +496,26 @@ export default function ReportsPage() {
   }
 
   // ── Delete column ─────────────────────────────────────────────────────────
-  const handleDeleteColumn = useCallback(async (col) => {
-    const report = reportsRef.current[col]
-    if (!report) return
+  const handleDeleteColumn = useCallback(async (cols) => {
+    const indexes = [...new Set((Array.isArray(cols) ? cols : [cols]).filter(Number.isInteger))].sort((a, b) => a - b)
+    const reportsToDelete = indexes.map(index => reportsRef.current[index]).filter(Boolean)
+    if (!reportsToDelete.length) return
 
-    const prev = reportsRef.current
-    const next = prev.filter(r => r.id !== report.id)
+    const idsToDelete = new Set(reportsToDelete.map(report => report.id))
+    const next = reportsRef.current.filter(report => !idsToDelete.has(report.id))
+
     setReports(next)
-    setSelectedColumn(cur => {
-      if (cur === null || cur === col) return null
-      return cur > col ? cur - 1 : cur
-    })
+    setSelectedColumn(null)
+    setSelectedColumns([])
 
     try {
-      await reportsApi.deleteReport(report.id)
+      await Promise.all(reportsToDelete.map(report => reportsApi.deleteReport(report.id)))
+      await load(false)
     } catch {
-      setReports(sortReports([...next, report]))
-      flash('Error al eliminar')
+      setReports(sortReports([...next, ...reportsToDelete]))
+      flash(reportsToDelete.length > 1 ? 'Error al eliminar columnas' : 'Error al eliminar')
     }
-  }, [])
+  }, [load])
 
   // ── Cell change / delete dispatch ─────────────────────────────────────────
   const handleCellChange = useCallback(async (type, payload) => {
@@ -454,16 +530,17 @@ export default function ReportsPage() {
         if (!report || !field) continue
 
         // Numeric-only guard
-        const parsed = (newVal === '' || newVal === null) ? null : Number(newVal)
-        if (newVal !== null && newVal !== '' && isNaN(parsed)) continue
+        const parsed = normalizeNumber(newVal)
+        if (newVal !== null && newVal !== '' && parsed === null) continue
 
-        const prev = (oldVal === '' || oldVal === null) ? null : Number(oldVal)
+        const prev = normalizeNumber(oldVal)
         if (parsed === prev) continue
 
         setReports(p => p.map(r => r.id === report.id ? { ...r, [field.key]: parsed } : r))
         setSaving(true)
         try {
           await reportsApi.patchReport(report.id, { [field.key]: parsed })
+          await load(false)
         } catch {
           setReports(p => p.map(r => r.id === report.id ? { ...r, [field.key]: prev } : r))
           flash('Error al guardar')
@@ -500,6 +577,7 @@ export default function ReportsPage() {
 
     try {
       await reportsApi.patchReport(reportId, { date: newDate })
+      await load(false)
     } catch {
       setReports(rollback)
       setSelectedColumn(rollback.findIndex(r => r.id === reportId))
@@ -509,6 +587,7 @@ export default function ReportsPage() {
 
   const selectedReport = selectedColumn === null ? null : reports[selectedColumn]
   const hasReports     = reports.length > 0
+  const selectedCount = selectedColumns.length
 
   return (
     <div className={styles.page}>
@@ -539,12 +618,6 @@ export default function ReportsPage() {
             </button>
           )}
           {/* Always shown when there ARE reports */}
-          {hasReports && (
-            <button className={styles.btnSecondary} onClick={handleNewReport} disabled={creating}>
-              {creating && <span className={styles.spinner} />}
-              + Agregar columna
-            </button>
-          )}
         </div>
       </div>
 
@@ -569,28 +642,33 @@ export default function ReportsPage() {
           <div>
             <p className={styles.selectionLabel}>Columna activa</p>
             <strong className={styles.selectionValue}>
-              {selectedReport?.date ?? 'Selecciona una columna'}
+              {selectedCount > 1
+                ? `${selectedCount} columnas seleccionadas`
+                : (selectedReport?.date ?? 'Selecciona una columna')}
             </strong>
           </div>
           <div className={styles.selectionActions}>
             <button
               className={styles.btnGhost}
               onClick={() => {
-                if (selectedColumn === null || !selectedReport) return
+                if (selectedColumn === null || !selectedReport || selectedCount > 1) return
                 setDateModal({ col: selectedColumn, reportId: selectedReport.id, date: selectedReport.date })
               }}
-              disabled={!selectedReport}
+              disabled={!selectedReport || selectedCount > 1}
             >
               Editar fecha
             </button>
             <button
               className={styles.btnDanger}
               onClick={() => {
-                if (!selectedReport) return
-                if (!confirm(`¿Eliminar reporte del ${selectedReport.date}?`)) return
-                handleDeleteColumn(selectedColumn)
+                if (!selectedColumns.length) return
+                const msg = selectedColumns.length === 1 && selectedReport
+                  ? `¿Eliminar reporte del ${selectedReport.date}?`
+                  : `¿Eliminar ${selectedColumns.length} reportes seleccionados?`
+                if (!confirm(msg)) return
+                handleDeleteColumn(selectedColumns)
               }}
-              disabled={!selectedReport}
+              disabled={!selectedColumns.length}
             >
               Eliminar columna
             </button>
@@ -610,7 +688,7 @@ export default function ReportsPage() {
             <span className={styles.emptyGlyph}>▤</span>
             <p className={styles.emptyTitle}>Sin reportes</p>
             <p className={styles.emptyDesc}>
-              Haz clic en <strong>+ Agregar columna</strong> para crear la tabla.
+              Haz clic en <strong>+ Nuevo Reporte</strong> para crear la tabla.
             </p>
             <button className={styles.btnPrimary} onClick={handleNewReport} disabled={creating}>
               {creating && <span className={styles.spinner} />}
@@ -624,7 +702,11 @@ export default function ReportsPage() {
               selectedColumn={selectedColumn}
               onCellChange={handleCellChange}
               onHeaderClick={handleHeaderClick}
-              onColumnSelect={setSelectedColumn}
+              selectedColumns={selectedColumns}
+              onColumnSelect={({ active, columns }) => {
+                setSelectedColumn(active)
+                setSelectedColumns(columns)
+              }}
               onAddColumn={handleNewReport}
             />
           </div>
