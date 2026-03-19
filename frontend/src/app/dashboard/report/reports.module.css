@@ -1,11 +1,11 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   LAYOUT — columna flex, sin scroll externo, tabla ocupa el resto exacto
+   LAYOUT
    ══════════════════════════════════════════════════════════════════════════ */
 .page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  height: 100vh;          /* fill the shell exactly */
+  overflow: hidden;       /* nothing leaks outside */
   background: var(--bg-base);
 }
 
@@ -91,7 +91,22 @@
   font-size: 12px; font-family: var(--font-sans);
   cursor: pointer; transition: background 130ms, color 130ms;
 }
-.btnGhost:hover { background: var(--bg-hover); color: var(--text-primary); }
+.btnGhost:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
+.btnGhost:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btnDanger {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px;
+  background: rgba(248,81,73,0.1); color: var(--danger);
+  border: 1px solid rgba(248,81,73,0.28); border-radius: 7px;
+  font-size: 12px; font-weight: 500; font-family: var(--font-sans);
+  cursor: pointer; transition: background 130ms, color 130ms, border-color 130ms;
+}
+.btnDanger:hover:not(:disabled) {
+  background: rgba(248,81,73,0.16);
+  border-color: rgba(248,81,73,0.4);
+}
+.btnDanger:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ── Leyenda ─────────────────────────────────────────────────────────────── */
 .legend {
@@ -116,35 +131,66 @@
 .chipDot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
 .hint { margin-left: auto; font-size: 11px; color: var(--text-muted); font-style: italic; white-space: nowrap; }
 
-/* ── Body ────────────────────────────────────────────────────────────────── */
+/* ── Selection bar ───────────────────────────────────────────────────────── */
+.selectionBar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 28px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(28,35,48,0.92) 0%, rgba(13,17,23,0.92) 100%);
+}
+.selectionLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.selectionValue {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+.selectionActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Body: fills remaining height, no overflow on parent ─────────────────── */
 .body {
   flex: 1;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;           /* critical: allows flex child to shrink below content */
+  overflow: hidden;
 }
 
-/* ── Área de la tabla ────────────────────────────────────────────────────── */
+/* ── Table area: fills body, clips nothing on its own ───────────────────── */
 .tableArea {
   flex: 1;
-  overflow: hidden;
   position: relative;
+  min-height: 0;
+  overflow: hidden;        /* clipping wrapper so HOT scrollbars sit inside */
 }
 
-/* El div que monta Handsontable llena el área exactamente */
+/* The div Handsontable mounts into — fills the wrapper exactly */
 .hotContainer {
   position: absolute;
   inset: 0;
+  overflow: hidden;        /* let HOT manage its own scrollbars internally */
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   OVERRIDES HANDSONTABLE — tema oscuro preciso
-   La estrategia: casi todo el estilo se aplica via afterGetColHeader /
-   afterGetRowHeader / renderer en JS. El CSS sólo cubre lo que no se puede
-   hacer desde JS: scrollbars, borders globales, menú contextual, editor.
+   HANDSONTABLE OVERRIDES — dark ERP theme
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* Fondo base del contenedor */
+/* Base background */
 .hotContainer :global(.handsontable),
 .hotContainer :global(.handsontable .wtHolder),
 .hotContainer :global(.handsontable .wtHider),
@@ -154,21 +200,53 @@
   font-family: var(--font-sans) !important;
 }
 
-/* Ocultar el fondo blanco que agrega Handsontable por defecto */
 .hotContainer :global(.handsontable .htCore),
 .hotContainer :global(.handsontable .htCore tbody) {
   background: transparent !important;
 }
 
-/* Borde de tabla completo */
 .hotContainer :global(.handsontable table.htCore) {
   border-collapse: collapse !important;
 }
 
-/* Borde de selección — fino, del color del acento */
+/* ── Frozen-clone panels — must share identical dimensions ───────────────── */
+/*
+   The main culprit of misalignment/duplication is the ht_clone_left panel.
+   We give it a hard overflow:hidden so it never overdraws the data area,
+   and we rely on HOT's own column-freeze logic (fixedColumnsStart:0) to keep
+   it empty / zero-width. These rules are defensive guards.
+*/
+.hotContainer :global(.ht_clone_left) {
+  overflow: hidden !important;
+  z-index: 3 !important;
+}
+.hotContainer :global(.ht_clone_top) {
+  overflow: hidden !important;
+  z-index: 2 !important;
+}
+.hotContainer :global(.ht_clone_top_left_corner),
+.hotContainer :global(.ht_clone_inline_start_top_left_corner) {
+  overflow: hidden !important;
+  z-index: 4 !important;
+}
+/* Make sure the master panel scrolls both axes cleanly */
+.hotContainer :global(.ht_master .wtHolder) {
+  overflow: auto !important;
+}
+
+/* ── Row-header clone: always visible, never overflows content ───────────── */
+.hotContainer :global(.ht_clone_inline_start) {
+  overflow: hidden !important;
+  z-index: 3 !important;
+}
+.hotContainer :global(.ht_clone_inline_start .wtHolder) {
+  overflow: hidden !important;
+}
+
+/* ── Selection border ────────────────────────────────────────────────────── */
 .hotContainer :global(.handsontable .wtBorder) {
   background: var(--accent) !important;
-  opacity: 0.7 !important;
+  opacity: 0.55 !important;
 }
 .hotContainer :global(.handsontable .wtBorder.corner) {
   background: var(--accent) !important;
@@ -178,7 +256,7 @@
   height: 5px !important;
 }
 
-/* ── Input de edición inline ─────────────────────────────────────────────── */
+/* ── Inline editor ───────────────────────────────────────────────────────── */
 .hotContainer :global(.handsontable .handsontableInput) {
   background: var(--bg-base) !important;
   color: var(--text-primary) !important;
@@ -190,7 +268,7 @@
   caret-color: var(--accent) !important;
 }
 
-/* ── Menú contextual ─────────────────────────────────────────────────────── */
+/* ── Context menu ────────────────────────────────────────────────────────── */
 .hotContainer :global(.htContextMenu .wtHolder) {
   background: var(--bg-surface) !important;
   border: 1px solid var(--border) !important;
@@ -199,12 +277,10 @@
   overflow: hidden !important;
   padding: 4px 0 !important;
 }
-
 .hotContainer :global(.htContextMenu table.htCore) {
   background: transparent !important;
   border: none !important;
 }
-
 .hotContainer :global(.htContextMenu table tbody tr td) {
   background: transparent !important;
   color: var(--text-secondary) !important;
@@ -221,41 +297,36 @@
   background: var(--bg-hover) !important;
   color: var(--text-primary) !important;
 }
-/* Separador */
 .hotContainer :global(.htContextMenu table tbody tr td.htSeparator) {
   background: var(--border-subtle) !important;
   height: 1px !important;
   padding: 0 !important;
-  margin: 3px 0 !important;
-}
-/* Item de eliminar — rojo sutil */
-.hotContainer :global(.htContextMenu table tbody tr:first-child td) {
-  color: var(--danger) !important;
-}
-.hotContainer :global(.htContextMenu table tbody tr:first-child td:hover) {
-  background: rgba(248,81,73,0.1) !important;
-  color: var(--danger) !important;
 }
 
-/* ── Scrollbars internos — alineados con los globales del ERP ────────────── */
-.hotContainer :global(*::-webkit-scrollbar)       { width: 7px; height: 7px; }
-.hotContainer :global(*::-webkit-scrollbar-track) { background: var(--bg-base); border-radius: 4px; }
+/* ── Scrollbars — ERP dark style, consistent with globals.css ────────────── */
+.hotContainer :global(*::-webkit-scrollbar)       { width: 6px; height: 6px; }
+.hotContainer :global(*::-webkit-scrollbar-track) { background: var(--bg-base); border-radius: 3px; }
 .hotContainer :global(*::-webkit-scrollbar-thumb) {
   background: var(--border);
-  border-radius: 4px;
-  border: 1px solid var(--bg-base);
+  border-radius: 3px;
 }
-.hotContainer :global(*::-webkit-scrollbar-thumb:hover)  { background: var(--text-muted); }
-.hotContainer :global(*::-webkit-scrollbar-corner) { background: var(--bg-base); }
+.hotContainer :global(*::-webkit-scrollbar-thumb:hover) { background: var(--text-muted); }
+.hotContainer :global(*::-webkit-scrollbar-corner)      { background: var(--bg-base); }
 
-/* Scrollbar horizontal — igual pero más visible en la zona inferior */
+/* Horizontal scrollbar sits below the last data row, not overlapping */
 .hotContainer :global(.ht_master .wtHolder::-webkit-scrollbar-track) {
   background: var(--bg-elevated);
   border-top: 1px solid var(--border);
 }
 
+/* ── Suppress HOT's own blue/white selection highlight so our renderer wins ─ */
+.hotContainer :global(.handsontable td.area),
+.hotContainer :global(.handsontable td.current) {
+  background: inherit !important;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
-   MODAL DE FECHA
+   DATE MODAL
    ══════════════════════════════════════════════════════════════════════════ */
 .overlay {
   position: fixed; inset: 0;
@@ -312,7 +383,7 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   ESTADOS VACÍO Y CARGANDO
+   EMPTY / LOADING STATES
    ══════════════════════════════════════════════════════════════════════════ */
 .stateCenter {
   flex: 1;
@@ -350,3 +421,11 @@
 @keyframes slideUp { from { opacity:0; transform: translateY(8px) scale(0.98); } to { opacity:1; transform: none; } }
 @keyframes spin    { to { transform: rotate(360deg); } }
 @keyframes pulse   { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 920px) {
+  .header, .legend, .selectionBar { padding-left: 16px; padding-right: 16px; }
+  .header, .selectionBar { flex-direction: column; align-items: stretch; }
+  .headerRight, .selectionActions { justify-content: stretch; }
+  .hint { margin-left: 0; white-space: normal; }
+}
