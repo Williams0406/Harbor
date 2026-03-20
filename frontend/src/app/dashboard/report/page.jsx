@@ -44,7 +44,7 @@ const FIELDS = [
   { key: 'damper_temp',                     label: 'T° damper',                    group: 'Temperaturas' },
   { key: 'boost_pressure',                  label: 'Presión boots',                group: 'Temperaturas' },
   { key: 'engine_oil_level',                label: 'Nivel aceite motor',           group: 'Aceite motor' },
-  { key: 'refill_engine_oil',               label: 'Rellenar aceite  0=No  1=Sí',  group: 'Aceite motor' },
+  { key: 'refill_engine_oil',               label: 'Rellenar aceite',              group: 'Aceite motor' },
   { key: 'coolant_pump_pressure',           label: 'Presión bomba refrig.',        group: 'Refrigeración' },
   { key: 'aftercooler_coolant_inlet_temp',  label: 'Aftercooler entrada',          group: 'Refrigeración' },
   { key: 'aftercooler_coolant_outlet_temp', label: 'Aftercooler salida',           group: 'Refrigeración' },
