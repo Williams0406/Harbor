@@ -322,20 +322,41 @@
   padding: 0 !important;
 }
 
-/* ── Scrollbars — ERP dark style, consistent with globals.css ────────────── */
-.hotViewport::-webkit-scrollbar,
-.hotContainer :global(*::-webkit-scrollbar)       { width: 8px; height: 8px; }
-.hotViewport::-webkit-scrollbar-track,
-.hotContainer :global(*::-webkit-scrollbar-track) { background: var(--bg-base); border-radius: 999px; }
-.hotViewport::-webkit-scrollbar-thumb,
-.hotContainer :global(*::-webkit-scrollbar-thumb) {
+/* ── Scrollbars — keep only the outer dark viewport bars visible ───────── */
+.hotViewport {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg-base);
+}
+
+.hotViewport::-webkit-scrollbar { width: 8px; height: 8px; }
+.hotViewport::-webkit-scrollbar-track {
+  background: var(--bg-base);
+  border-radius: 999px;
+}
+.hotViewport::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
 }
-.hotViewport::-webkit-scrollbar-thumb:hover,
-.hotContainer :global(*::-webkit-scrollbar-thumb:hover) { background: var(--text-muted); }
-.hotViewport::-webkit-scrollbar-corner,
-.hotContainer :global(*::-webkit-scrollbar-corner)      { background: var(--bg-base); }
+.hotViewport::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+.hotViewport::-webkit-scrollbar-corner { background: var(--bg-base); }
+
+.hotContainer :global(.handsontable .wtHolder),
+.hotContainer :global(.handsontable .ht_clone_top .wtHolder),
+.hotContainer :global(.handsontable .ht_clone_inline_start .wtHolder),
+.hotContainer :global(.handsontable .ht_clone_top_left_corner .wtHolder),
+.hotContainer :global(.handsontable .ht_clone_inline_start_top_left_corner .wtHolder) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hotContainer :global(.handsontable .wtHolder::-webkit-scrollbar),
+.hotContainer :global(.handsontable .ht_clone_top .wtHolder::-webkit-scrollbar),
+.hotContainer :global(.handsontable .ht_clone_inline_start .wtHolder::-webkit-scrollbar),
+.hotContainer :global(.handsontable .ht_clone_top_left_corner .wtHolder::-webkit-scrollbar),
+.hotContainer :global(.handsontable .ht_clone_inline_start_top_left_corner .wtHolder::-webkit-scrollbar) {
+  width: 0 !important;
+  height: 0 !important;
+}
 
 /* ── Suppress HOT's own blue/white selection highlight so our renderer wins ─ */
 .hotContainer :global(.handsontable td.area),

@@ -79,6 +79,12 @@ function buildMatrix(reports) {
   )
 }
 
+function areSameColumns(a, b) {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  return a.every((value, index) => value === b[index])
+}
+
 // ─── Sync Handsontable data without destroy/recreate ────────────────────────
 function syncHot(hot, reports) {
   if (!hot || hot.isDestroyed) return
@@ -150,13 +156,20 @@ function HotGrid({ reports, selectedColumn, selectedColumns, onCellChange, onHea
   useEffect(() => {
     if (!containerRef.current || hotRef.current) return
 
+    let cancelled = false
+    const container = containerRef.current
+    container.replaceChildren()
+
     Promise.all([
       import('handsontable/registry'),
       import('handsontable'),
     ]).then(([{ registerAllModules }, { default: Handsontable }]) => {
-      registerAllModules()
+      if (cancelled) return
 
-      const hot = new Handsontable(containerRef.current, {
+      registerAllModules()
+      container.replaceChildren()
+
+      const hot = new Handsontable(container, {
         data: [[]],
         rowHeaders: FIELDS.map(f => f.label),
         colHeaders: ['—'],
@@ -270,12 +283,18 @@ function HotGrid({ reports, selectedColumn, selectedColumns, onCellChange, onHea
 
           const startCol = Math.min(c1, c2)
           const endCol = Math.max(c1, c2)
-          const selectedCols = Array.from({ length: endCol - startCol + 1 }, (_, index) => startCol + index)
-          onColumnSelect({
-            active: c1 === c2 ? c1 : startCol,
-            columns: selectedCols,
-          })
+          const activeCol = c1 === c2 ? c1 : startCol
+          const isHeaderSelection = Math.min(r1, r2) === 0 && Math.max(r1, r2) === FIELDS.length - 1
+          const selectedCols = isHeaderSelection
+            ? Array.from({ length: endCol - startCol + 1 }, (_, index) => startCol + index)
+            : []
 
+          if (selectedColRef.current !== activeCol || !areSameColumns(selectedColsRef.current, selectedCols)) {
+            onColumnSelect({
+              active: activeCol,
+              columns: selectedCols,
+            })
+          }
 
           for (let row = Math.min(r1, r2); row <= Math.max(r1, r2); row++) {
             for (let col = Math.min(c1, c2); col <= Math.max(c1, c2); col++) {
@@ -301,7 +320,9 @@ function HotGrid({ reports, selectedColumn, selectedColumns, onCellChange, onHea
             td.style.boxShadow  = 'none'
           })
           selectionCellsRef.current = []
-          onColumnSelect({ active: null, columns: [] })
+          if (selectedColRef.current !== null || selectedColsRef.current.length) {
+            onColumnSelect({ active: null, columns: [] })
+          }
           hot.render()
         },
 
@@ -423,8 +444,10 @@ function HotGrid({ reports, selectedColumn, selectedColumns, onCellChange, onHea
     })
 
     return () => {
+      cancelled = true
       hotRef.current?.destroy()
       hotRef.current = null
+      container.replaceChildren()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -597,7 +620,13 @@ export default function ReportsPage() {
     }
   }
 
+  const handleColumnSelect = useCallback(({ active, columns }) => {
+    setSelectedColumn(prev => (prev === active ? prev : active))
+    setSelectedColumns(prev => (areSameColumns(prev, columns) ? prev : columns))
+  }, [])
+
   const selectedReport = selectedColumn === null ? null : reports[selectedColumn]
+  const selectedHeaderReport = selectedColumns.length === 1 ? reports[selectedColumns[0]] : null
   const hasReports     = reports.length > 0
   const selectedCount = selectedColumns.length
 
@@ -643,7 +672,7 @@ export default function ReportsPage() {
             </span>
           ))}
           <span className={styles.hint}>
-            Click en la fecha para editar · Clic derecho para acciones
+            Doble clic en la fecha para editar · Selecciona encabezados para eliminar columnas
           </span>
         </div>
       )}
@@ -661,21 +690,11 @@ export default function ReportsPage() {
           </div>
           <div className={styles.selectionActions}>
             <button
-              className={styles.btnGhost}
-              onClick={() => {
-                if (selectedColumn === null || !selectedReport || selectedCount > 1) return
-                setDateModal({ col: selectedColumn, reportId: selectedReport.id, date: selectedReport.date })
-              }}
-              disabled={!selectedReport || selectedCount > 1}
-            >
-              Editar fecha
-            </button>
-            <button
               className={styles.btnDanger}
               onClick={() => {
                 if (!selectedColumns.length) return
-                const msg = selectedColumns.length === 1 && selectedReport
-                  ? `¿Eliminar reporte del ${selectedReport.date}?`
+                const msg = selectedColumns.length === 1 && selectedHeaderReport
+                  ? `¿Eliminar reporte del ${selectedHeaderReport.date}?`
                   : `¿Eliminar ${selectedColumns.length} reportes seleccionados?`
                 if (!confirm(msg)) return
                 handleDeleteColumn(selectedColumns)
@@ -715,10 +734,7 @@ export default function ReportsPage() {
               onCellChange={handleCellChange}
               onHeaderClick={handleHeaderClick}
               selectedColumns={selectedColumns}
-              onColumnSelect={({ active, columns }) => {
-                setSelectedColumn(active)
-                setSelectedColumns(columns)
-              }}
+              onColumnSelect={handleColumnSelect}
               onAddColumn={handleNewReport}
             />
           </div>
