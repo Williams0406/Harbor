@@ -66,8 +66,21 @@ const COL_WIDTH      = 140
 const ROW_HDR_WIDTH  = 220
 const ROW_HEIGHT     = 30
 
+function getHourmeterSortValue(report) {
+  const raw = report?.hourmeter
+  if (raw === null || raw === undefined || raw === '') return Number.POSITIVE_INFINITY
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY
+}
+
 function sortReports(list) {
-  return list.slice().sort((a, b) => (a.date > b.date ? 1 : -1))
+  return list.slice().sort((a, b) => {
+    const hourmeterDiff = getHourmeterSortValue(a) - getHourmeterSortValue(b)
+    if (hourmeterDiff !== 0) return hourmeterDiff
+
+    if ((a?.date || '') !== (b?.date || '')) return (a?.date || '').localeCompare(b?.date || '')
+    return (a?.id || 0) - (b?.id || 0)
+  })
 }
 
 function buildMatrix(reports) {
@@ -83,6 +96,14 @@ function areSameColumns(a, b) {
   if (a === b) return true
   if (a.length !== b.length) return false
   return a.every((value, index) => value === b[index])
+}
+
+function isWithinDateRange(report, dateFrom, dateTo) {
+  const date = report?.date || ''
+  if (!date) return !dateFrom && !dateTo
+  if (dateFrom && date < dateFrom) return false
+  if (dateTo && date > dateTo) return false
+  return true
 }
 
 // ─── Sync Handsontable data without destroy/recreate ────────────────────────
@@ -481,6 +502,7 @@ function normalizeNumber(value) {
 
 export default function ReportsPage() {
   const reportsRef = useRef([])
+  const visibleReportsRef = useRef([])
   const [reports,       setReports]       = useState([])
   const [loading,       setLoading]       = useState(true)
   const [creating,      setCreating]      = useState(false)
@@ -489,8 +511,20 @@ export default function ReportsPage() {
   const [dateModal,     setDateModal]     = useState(null)
   const [selectedColumn, setSelectedColumn] = useState(null)
   const [selectedColumns, setSelectedColumns] = useState([])
+  const [dateFrom,      setDateFrom]      = useState('')
+  const [dateTo,        setDateTo]        = useState('')
 
   useEffect(() => { reportsRef.current = reports }, [reports])
+
+  const visibleReports = useMemo(() => (
+    reports.filter(report => isWithinDateRange(report, dateFrom, dateTo))
+  ), [reports, dateFrom, dateTo])
+
+  useEffect(() => { visibleReportsRef.current = visibleReports }, [visibleReports])
+  useEffect(() => {
+    setSelectedColumn(null)
+    setSelectedColumns([])
+  }, [dateFrom, dateTo])
 
   // ── Load ─────────────────────────────────────────────────────────────────
   const load = useCallback(async (keepLoadingState = true) => {
@@ -520,8 +554,10 @@ export default function ReportsPage() {
       const today = new Date().toISOString().slice(0, 10)
       const res   = await reportsApi.createReport({ date: today })
       const next  = sortReports([...reportsRef.current, res.data])
+      const nextVisible = next.filter(report => isWithinDateRange(report, dateFrom, dateTo))
       setReports(next)
-      setSelectedColumn(next.findIndex(r => r.id === res.data.id))
+      const nextIndex = nextVisible.findIndex(r => r.id === res.data.id)
+      setSelectedColumn(nextIndex >= 0 ? nextIndex : null)
       await load(false)
     } catch (e) {
       flash(e.response?.data?.date?.[0] || 'Error al crear reporte')
@@ -533,7 +569,7 @@ export default function ReportsPage() {
   // ── Delete column ─────────────────────────────────────────────────────────
   const handleDeleteColumn = useCallback(async (cols) => {
     const indexes = [...new Set((Array.isArray(cols) ? cols : [cols]).filter(Number.isInteger))].sort((a, b) => a - b)
-    const reportsToDelete = indexes.map(index => reportsRef.current[index]).filter(Boolean)
+    const reportsToDelete = indexes.map(index => visibleReportsRef.current[index]).filter(Boolean)
     if (!reportsToDelete.length) return
 
     const idsToDelete = new Set(reportsToDelete.map(report => report.id))
@@ -560,7 +596,7 @@ export default function ReportsPage() {
     }
     if (type === 'cell') {
       for (const [row, col, oldVal, newVal] of payload) {
-        const report = reportsRef.current[col]
+        const report = visibleReportsRef.current[col]
         const field  = FIELDS[row]
         if (!report || !field) continue
 
@@ -588,7 +624,7 @@ export default function ReportsPage() {
 
   // ── Header click → open date modal ───────────────────────────────────────
   const handleHeaderClick = useCallback((col) => {
-    const report = reportsRef.current[col]
+    const report = visibleReportsRef.current[col]
     if (!report) return
     setSelectedColumn(col)
     setDateModal({ col, reportId: report.id, date: report.date })
@@ -607,15 +643,19 @@ export default function ReportsPage() {
       r.id === reportId ? { ...r, date: oldDate } : r
     ))
 
+    const optimisticVisible = optimistic.filter(report => isWithinDateRange(report, dateFrom, dateTo))
     setReports(optimistic)
-    setSelectedColumn(optimistic.findIndex(r => r.id === reportId))
+    const optimisticIndex = optimisticVisible.findIndex(r => r.id === reportId)
+    setSelectedColumn(optimisticIndex >= 0 ? optimisticIndex : null)
 
     try {
       await reportsApi.patchReport(reportId, { date: newDate })
       await load(false)
     } catch {
+      const rollbackVisible = rollback.filter(report => isWithinDateRange(report, dateFrom, dateTo))
       setReports(rollback)
-      setSelectedColumn(rollback.findIndex(r => r.id === reportId))
+      const rollbackIndex = rollbackVisible.findIndex(r => r.id === reportId)
+      setSelectedColumn(rollbackIndex >= 0 ? rollbackIndex : null)
       flash('Error al guardar fecha')
     }
   }
@@ -625,9 +665,9 @@ export default function ReportsPage() {
     setSelectedColumns(prev => (areSameColumns(prev, columns) ? prev : columns))
   }, [])
 
-  const selectedReport = selectedColumn === null ? null : reports[selectedColumn]
-  const selectedHeaderReport = selectedColumns.length === 1 ? reports[selectedColumns[0]] : null
-  const hasReports     = reports.length > 0
+  const selectedReport = selectedColumn === null ? null : visibleReports[selectedColumn]
+  const hasReports = reports.length > 0
+  const hasVisibleReports = visibleReports.length > 0
   const selectedCount = selectedColumns.length
 
   return (
@@ -638,10 +678,13 @@ export default function ReportsPage() {
         <div className={styles.headerLeft}>
           <h1 className={styles.title}>Reportes de Motor</h1>
           <span className={styles.subtitle}>
-            {reports.length} reporte{reports.length !== 1 ? 's' : ''} · {FIELDS.length} campos
+            {hasVisibleReports ? `${visibleReports.length}/${reports.length}` : reports.length} reporte{reports.length !== 1 ? 's' : ''} · {FIELDS.length} campos
           </span>
         </div>
         <div className={styles.headerRight}>
+          <a href="/dashboard/report/charts" className={styles.btnSecondary}>
+            Ver gráficos
+          </a>
           {saving && (
             <span className={styles.pill} data-variant="saving">
               <span className={styles.dot} />
@@ -651,6 +694,36 @@ export default function ReportsPage() {
           {errMsg && (
             <span className={styles.pill} data-variant="error">{errMsg}</span>
           )}
+          <div className={styles.filterBar}>
+            <label className={styles.filterField}>
+              <span>Desde</span>
+              <input
+                className={styles.filterInput}
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+              />
+            </label>
+            <label className={styles.filterField}>
+              <span>Hasta</span>
+              <input
+                className={styles.filterInput}
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+              />
+            </label>
+            <button
+              className={styles.btnGhost}
+              onClick={() => {
+                setDateFrom('')
+                setDateTo('')
+              }}
+              disabled={!dateFrom && !dateTo}
+            >
+              Limpiar filtro
+            </button>
+          </div>
           {/* Only shown when there are no reports yet */}
           {!hasReports && !loading && (
             <button className={styles.btnSecondary} onClick={handleNewReport} disabled={creating}>
@@ -663,7 +736,7 @@ export default function ReportsPage() {
       </div>
 
       {/* ── Legend ───────────────────────────────────────────────────────── */}
-      {hasReports && (
+      {hasVisibleReports && (
         <div className={styles.legend}>
           {Object.entries(GROUP).map(([name, { accent }]) => (
             <span key={name} className={styles.chip}>
@@ -672,13 +745,13 @@ export default function ReportsPage() {
             </span>
           ))}
           <span className={styles.hint}>
-            Doble clic en la fecha para editar · Selecciona encabezados para eliminar columnas
+            Doble clic en la fecha para editar · Columnas ordenadas por horómetro
           </span>
         </div>
       )}
 
       {/* ── Selection bar ─────────────────────────────────────────────────── */}
-      {hasReports && (
+      {hasVisibleReports && (
         <div className={styles.selectionBar}>
           <div>
             <p className={styles.selectionLabel}>Columna activa</p>
@@ -687,22 +760,6 @@ export default function ReportsPage() {
                 ? `${selectedCount} columnas seleccionadas`
                 : (selectedReport?.date ?? 'Selecciona una columna')}
             </strong>
-          </div>
-          <div className={styles.selectionActions}>
-            <button
-              className={styles.btnDanger}
-              onClick={() => {
-                if (!selectedColumns.length) return
-                const msg = selectedColumns.length === 1 && selectedHeaderReport
-                  ? `¿Eliminar reporte del ${selectedHeaderReport.date}?`
-                  : `¿Eliminar ${selectedColumns.length} reportes seleccionados?`
-                if (!confirm(msg)) return
-                handleDeleteColumn(selectedColumns)
-              }}
-              disabled={!selectedColumns.length}
-            >
-              Eliminar columna
-            </button>
           </div>
         </div>
       )}
@@ -726,10 +783,21 @@ export default function ReportsPage() {
               + Nuevo Reporte
             </button>
           </div>
+        ) : !hasVisibleReports ? (
+          <div className={styles.stateCenter}>
+            <span className={styles.emptyGlyph}>◌</span>
+            <p className={styles.emptyTitle}>Sin resultados</p>
+            <p className={styles.emptyDesc}>
+              No hay reportes dentro del rango de fechas seleccionado.
+            </p>
+            <button className={styles.btnGhost} onClick={() => { setDateFrom(''); setDateTo('') }}>
+              Limpiar filtro
+            </button>
+          </div>
         ) : (
           <div className={styles.tableArea}>
             <HotGrid
-              reports={reports}
+              reports={visibleReports}
               selectedColumn={selectedColumn}
               onCellChange={handleCellChange}
               onHeaderClick={handleHeaderClick}
